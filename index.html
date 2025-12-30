@@ -1,4 +1,4 @@
-此程式碼使用 Tailwind CSS 進行美化，並利用 Leaflet.js 建立互動式地圖。地圖標記會根據遊蕩犬估計數自動調整顏色（紅色為 1 萬隻以上、橙色為 5 千至 1 萬、綠色為 5 千以下）。
+這段程式碼整合了 Leaflet.js（地圖） 與 Chart.js（互動橫條圖），並完全採用來源 的數據。
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -8,42 +8,56 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        #map { height: 600px; width: 100%; border-radius: 12px; }
+        #map { height: 500px; width: 100%; border-radius: 12px; }
+        .chart-container { position: relative; height: 600px; width: 100%; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans">
 
-    <div class="max-w-4xl mx-auto py-12 px-4">
+    <div class="max-w-5xl mx-auto py-12 px-4">
         <header class="text-center mb-10">
             <h1 class="text-4xl font-bold text-blue-900 mb-2">台灣遊蕩犬分析</h1>
             <p class="text-lg text-gray-600">作者：潘念恬</p>
         </header>
 
+        <!-- 前言區塊 -->
         <section class="bg-white p-8 rounded-xl shadow-md mb-8">
             <h2 class="text-2xl font-semibold mb-4 text-blue-800">網頁前言</h2>
             <p class="leading-relaxed text-justify">
-                本網頁旨在呈現 113 年台灣各縣市遊蕩犬的分布現況，具備重要的社會監督與政策分析意義。透過數據可視化，能協助政府與民間組織精確配置資源，例如在熱區推動精準捕捉、絕育（TNVR）及收容管理，實踐《動物福利白皮書》中「動物友善社會」的願景 [1-3]。本網頁數據完全引用自農業部「動物保護資訊網」之「113年各縣市遊蕩犬估計數調查結果」，確保資訊的權威性與時效性 [1, 4, 5]。
+                本網頁透過 113 年全國遊蕩犬調查數據，展現動保政策的量化成效與社會價值。透過可視化地圖與密度圖表，能協助大眾理解城鄉區域在動物管理上的壓力差異，並作為推動絕育（TNVR）、精準捕捉及落實《動物福利白皮書》願景的參考依據 [1, 4, 5]。本數據完全引用自農業部「動物保護資訊網」113年最新調查結果，旨在提升國人對飼主責任與流浪動物議題的理性關注 [2, 3]。
             </p>
         </section>
 
+        <!-- 互動式地圖區塊 -->
         <section class="bg-white p-6 rounded-xl shadow-md mb-8">
-            <h2 class="text-2xl font-semibold mb-4 text-blue-800 text-center">各縣市遊蕩犬分布地圖</h2>
+            <h2 class="text-2xl font-semibold mb-4 text-blue-800 text-center">各縣市遊蕩犬分布地圖 (估計數)</h2>
             <div id="map" class="z-0"></div>
-            <p class="mt-4 text-sm text-gray-500 text-center">圖例：🔴 >10,000隻 | 🟠 5,000~10,000隻 | 🟢 <5,000隻</p>
+            <p class="mt-4 text-sm text-gray-500 text-center">圖例：🔴 >10,000隻 | 🟠 5,000-10,000隻 | 🟢 <5,000隻</p>
         </section>
 
+        <!-- 互動式橫條圖區塊 (新增) -->
+        <section class="bg-white p-6 rounded-xl shadow-md mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-blue-800 text-center">各縣市每百人遊蕩犬數 (由高至低)</h2>
+            <div class="chart-container">
+                <canvas id="densityChart"></canvas>
+            </div>
+            <p class="mt-4 text-sm text-gray-500 text-center">註：橫條顏色依該縣市「遊蕩犬估計數」區分，點擊長條可查看詳細數值。</p>
+        </section>
+
+        <!-- 關鍵數字分析 -->
         <section class="bg-blue-50 p-8 rounded-xl border-l-8 border-blue-600">
             <h2 class="text-2xl font-semibold mb-4 text-blue-900">關鍵數字分析</h2>
             <p class="leading-relaxed">
-                113 年全國遊蕩犬總數為 **141,584 隻** [6]。**臺南市 (19,990)** 數量最多；若看密度，**臺東縣**高達每百人 **4.04 隻**，居全台之冠，而**臺北市 (0.08)** 最低 [5]。這反映出資源應優先投入高密度的農業與熱區縣市進行源頭管控 [3, 5]。
+                113年全國遊蕩犬總數為 **141,584 隻** [3]。數據顯示，**臺南市 (19,990)** 為數量之冠；然而若考慮人口比例，**臺東縣 (4.04)** 與 **嘉義縣 (3.50)** 的每百人密度遠高於全國平均值 (0.605)，而 **臺北市 (0.08)** 密度最低 [2, 3]。這說明管理資源應更精準地投入高密度熱區，強化源頭管控與絕育工作。
             </p>
         </section>
     </div>
 
     <script>
-        // 縣市座標與113年數據 [5, 6]
-        const data = [
+        // 來源 [2, 3] 完整數據
+        const rawData = [
             { name: "臺南市", count: 19990, density: 1.07, lat: 23.0, lng: 120.2 },
             { name: "嘉義縣", count: 16944, density: 3.50, lat: 23.4, lng: 120.3 },
             { name: "高雄市", count: 10200, density: 0.37, lat: 22.6, lng: 120.3 },
@@ -57,21 +71,59 @@
             { name: "苗栗縣", count: 7403, density: 1.38, lat: 24.5, lng: 120.8 },
             { name: "花蓮縣", count: 6983, density: 2.20, lat: 23.8, lng: 121.5 },
             { name: "雲林縣", count: 4934, density: 0.75, lat: 23.7, lng: 120.4 },
-            { name: "臺北市", count: 1908, density: 0.08, lat: 25.1, lng: 121.55 }
+            { name: "基隆市", count: 3112, density: 0.86, lat: 25.1, lng: 121.7 },
+            { name: "新竹縣", count: 2396, density: 0.41, lat: 24.8, lng: 121.0 },
+            { name: "臺北市", count: 1908, density: 0.08, lat: 25.1, lng: 121.55 },
+            { name: "宜蘭縣", count: 1630, density: 0.36, lat: 24.7, lng: 121.7 },
+            { name: "嘉義市", count: 906, density: 0.34, lat: 23.4, lng: 120.4 },
+            { name: "澎湖縣", count: 520, density: 0.48, lat: 23.5, lng: 119.6 },
+            { name: "新竹市", count: 516, density: 0.11, lat: 24.8, lng: 120.9 },
+            { name: "金門縣", count: 167, density: 0.12, lat: 24.4, lng: 118.3 },
+            { name: "連江縣", count: 26, density: 0.19, lat: 26.1, lng: 119.9 }
         ];
 
+        // 1. 地圖邏輯
         const map = L.map('map').setView([23.7, 121], 7);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        data.forEach(item => {
+        rawData.forEach(item => {
             let color = item.count > 10000 ? "#ef4444" : (item.count > 5000 ? "#f97316" : "#22c55e");
             L.circleMarker([item.lat, item.lng], {
-                color: color,
-                fillColor: color,
-                fillOpacity: 0.7,
-                radius: 10 + (item.count / 2000)
+                color: color, fillColor: color, fillOpacity: 0.7, radius: 8 + (item.count / 2500)
             }).addTo(map)
               .bindPopup(`<b>${item.name}</b><br>估計數：${item.count.toLocaleString()} 隻<br>每百人密度：${item.density}`);
+        });
+
+        // 2. 橫條圖邏輯 (按密度排序)
+        const sortedData = [...rawData].sort((a, b) => b.density - a.density);
+        const ctx = document.getElementById('densityChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedData.map(d => d.name),
+                datasets: [{
+                    label: '每百人遊蕩犬數',
+                    data: sortedData.map(d => d.density),
+                    backgroundColor: sortedData.map(d => d.count > 10000 ? "#ef4444" : (d.count > 5000 ? "#f97316" : "#22c55e")),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const item = sortedData[context.dataIndex];
+                                return `總估計數: ${item.count.toLocaleString()} 隻`;
+                            }
+                        }
+                    }
+                }
+            }
         });
     </script>
 </body>
